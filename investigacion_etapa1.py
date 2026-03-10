@@ -7,7 +7,7 @@ from scipy.optimize import curve_fit
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="R&D Materials Optimizer", layout="wide")
 
-# Estética sofisticada "Dark Mode"
+# Estética Sophisticated Dark
 st.markdown("""
     <style>
     .main { background-color: #0f172a; color: #f8fafc; }
@@ -27,12 +27,12 @@ st.title("🛡️ Materials Innovation Engine")
 st.markdown("*Optimización de Películas Termoencogibles de Alto Desempeño*")
 st.markdown("---")
 
-# --- BARRA LATERAL ---
+# --- BARRA LATERAL (ENTRADAS) ---
 with st.sidebar:
     st.header("⚙️ Parámetros de Diseño")
     
     with st.expander("📦 Configuración de Paca", expanded=True):
-        peso_paca = st.number_input("Peso Total de la Paca (kg)", value=18.0, step=0.5)
+        peso_paca = st.number_input("Peso de Paca (kg)", value=18.0, step=0.5)
         l_paca = st.number_input("Largo de Paca (mm)", value=400)
         a_paca = st.number_input("Ancho de Paca (mm)", value=200)
 
@@ -48,39 +48,59 @@ with st.sidebar:
         cal_actual = st.number_input("Calibre Actual PCR (µm)", value=60)
         vol_mensual = st.number_input("Producción Mensual (kg)", value=25000)
 
-# --- LÓGICA DE INGENIERÍA ---
+# --- LÓGICA DE INGENIERÍA GLOBAL ---
+# Fuerza de contención actual (N/mm)
 f_pcr = sig_pcr * (cal_actual / 1000)
+# Calibre necesario con material virgen para igualar esa fuerza
 cal_target = (f_pcr / sig_vir) * 1000
 ahorro_masa_porc = ((cal_actual - cal_target) / cal_actual) * 100
+kg_evitados_mes = (vol_mensual * ahorro_masa_porc / 100)
 
 # --- PESTAÑAS ---
 tab1, tab2, tab3, tab4 = st.tabs(["🌎 Sostenibilidad", "🏗️ Mecánica", "🔥 Cinética", "💰 ROI Financiero"])
 
-# TAB 2: MECÁNICA (Donde estaba el error del gráfico)
+# --- TAB 1: SOSTENIBILIDAD (ACTUALIZADO) ---
+with tab1:
+    st.markdown('<div class="report-card"><h3>Impacto Ambiental y Eficiencia de Masa</h3></div>', unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("Reducción de Calibre", f"{cal_target:.1f} µm", f"-{ahorro_masa_porc:.1f}%")
+        st.write("**Optimización Térmica:** Menor masa requiere menos energía para encogimiento en túnel.")
+
+    with col2:
+        st.metric("Ahorro de Polímero", f"{kg_evitados_mes:,.0f} kg/mes")
+        st.write("**Economía Circular:** Reducción de la demanda de resina por unidad de empaque.")
+
+    with col3:
+        # Factor de emisión: ~2.1 kg CO2e por cada kg de PE virgen producido
+        co2_evitado = kg_evitados_mes * 2.1
+        st.metric("Huella CO2 Evitada", f"{co2_evitado:,.1f} kg", "Impacto Mensual")
+        st.write("**Descarbonización:** Basado en factores de emisión estándar para Polietileno.")
+
+    st.divider()
+    st.info("💡 **Nota Técnica:** Al reducir el calibre mediante el uso de mLLDPE, no solo ahorramos material, sino que mejoramos la transparencia y las propiedades ópticas del empaque final.")
+
+# --- TAB 2: MECÁNICA ---
 with tab2:
     st.markdown('<div class="report-card"><h3>Validación Estructural y de Proceso</h3></div>', unsafe_allow_html=True)
-    col_l, col_r = st.columns(2)
-    
-    with col_l:
+    cl, cr = st.columns(2)
+    with cl:
         st.subheader("📦 Integridad de Carga")
         esfuerzo_real = (peso_paca * 9.81 * 0.22) / (2 * a_paca)
-        resistencia_material = sig_vir * (cal_target / 1000)
-        fs = resistencia_material / esfuerzo_real
-        
-        st.write(f"**Carga Dinámica:** {esfuerzo_real:.3f} N/mm")
-        if fs > 1.2:
-            st.success(f"Factor de Seguridad: {fs:.2f} (CUMPLE)")
-        else:
-            st.error(f"Factor de Seguridad: {fs:.2f} (RIESGO)")
-
-    with col_r:
-        st.subheader("🫧 Procesabilidad (Burbuja)")
+        resistencia_mat = sig_vir * (cal_target / 1000)
+        fs = resistencia_mat / esfuerzo_real
+        if fs > 1.2: st.success(f"Factor de Seguridad: {fs:.2f} (CUMPLE)")
+        else: st.error(f"Factor de Seguridad: {fs:.2f} (RIESGO)")
+    with cr:
+        st.subheader("🫧 Procesabilidad")
         ddr = gap / ((cal_target/1000) * bur)
         st.write(f"**Draw-Down Ratio (DDR):** {ddr:.1f}")
         if ddr < 45: st.info("Estado: Estable")
         else: st.warning("Estado: Crítico")
 
-# TAB 3: CINÉTICA TÉRMICA (El gráfico interactivo)
+# --- TAB 3: CINÉTICA TÉRMICA ---
 with tab3:
     st.markdown('<div class="report-card"><h3>Curvas de Contracción del Material</h3></div>', unsafe_allow_html=True)
     c_dat, c_plt = st.columns([1,2])
@@ -89,46 +109,26 @@ with tab3:
         new_data = st.data_editor(df_lab, num_rows="dynamic")
     with c_plt:
         try:
-            # AJUSTE MATEMÁTICO
             popt, _ = curve_fit(modelo_logistico, new_data["Temp"], new_data["Shrink"], p0=[65, 0.1, 115])
             tr = np.linspace(80, 160, 100)
-            
-            # CREACIÓN DEL GRÁFICO (Sintaxis correcta para Matplotlib)
+            plt.style.use('dark_background')
             fig, ax = plt.subplots(figsize=(6, 4))
-            fig.patch.set_facecolor('#1e293b') # Fondo oscuro
-            ax.set_facecolor('#1e293b')
-            
-            ax.plot(tr, modelo_logistico(tr, *popt), color='#38bdf8', lw=2, label="Modelo Predictivo")
-            ax.scatter(new_data["Temp"], new_data["Shrink"], color='#f43f5e', s=40, label="Datos de Horno")
-            
-            # Configuración de ejes
-            ax.set_title("Cinética de Contracción TD", color='white', pad=15)
-            ax.set_xlabel("Temperatura (°C)", color='white')
-            ax.set_ylabel("% Contracción", color='white')
-            ax.tick_params(colors='white')
-            ax.grid(alpha=0.1)
-            ax.legend()
-            
-            # COMANDO CLAVE: Mostrar el gráfico en Streamlit
+            fig.patch.set_facecolor('#1e293b'); ax.set_facecolor('#1e293b')
+            ax.plot(tr, modelo_logistico(tr, *popt), color='#38bdf8', lw=2)
+            ax.scatter(new_data["Temp"], new_data["Shrink"], color='#f43f5e', s=40)
+            ax.set_title("Cinética de Contracción TD", color='white')
+            ax.set_xlabel("Temp (°C)", color='white'); ax.set_ylabel("%", color='white')
+            ax.tick_params(colors='white'); ax.grid(alpha=0.1)
             st.pyplot(fig)
-            
-        except Exception as e:
-            st.warning(f"Ajustando el modelo... (Asegúrate de tener al menos 4 puntos en la tabla)")
+        except: st.warning("Ajustando modelo...")
 
-# TAB 4: FINANCIERO (Cálculos corregidos en COP)
+# --- TAB 4: FINANCIERO ---
 with tab4:
-    st.markdown('<div class="report-card"><h3>Evaluación de Rentabilidad (COP)</h3></div>', unsafe_allow_html=True)
+    st.markdown('<div class="report-card"><h3>Análisis de Rentabilidad (COP)</h3></div>', unsafe_allow_html=True)
     costo_mes_pcr = vol_mensual * costo_pcr
-    kg_vir_necesarios = vol_mensual * (1 - ahorro_masa_porc/100)
-    costo_mes_vir = kg_vir_necesarios * costo_vir
+    costo_mes_vir = (vol_mensual - kg_evitados_mes) * costo_vir
     ahorro_mes = costo_mes_pcr - costo_mes_vir
-    
     f1, f2, f3 = st.columns(3)
     f1.metric("Costo Mensual PCR", f"$ {costo_mes_pcr:,.0f}")
     f2.metric("Costo Virgen", f"$ {costo_mes_vir:,.0f}", f"- $ {ahorro_mes:,.0f}")
     f3.metric("AHORRO ANUAL", f"$ {(ahorro_mes * 12):,.0f}")
-
-    if ahorro_mes > 0:
-        st.success("✅ PROYECTO RENTABLE")
-    else:
-        st.error("❌ NO RENTABLE CON ESTOS COSTOS")
